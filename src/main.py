@@ -13,6 +13,8 @@ def main():
 
     moscow_timezone = pytz.timezone("Europe/Moscow")
     time = datetime.datetime(2025, 2, 13, 1, 20, 10, 637, moscow_timezone)
+    time_step = datetime.timedelta(hours=2)
+    time_end = datetime.datetime(2025, 2, 14, 1, 20, 10, 673, moscow_timezone)
  
     # line1 = "1 53385U 22096R   22269.14435733  .00009653  00000-0  37762-3 0  999 5"
     # line2 = "2 53385  97.4313 170.3195 0002683 298.0162 199.7004 15.26041929  732 7"
@@ -33,12 +35,17 @@ def main():
 
     ax.plot_wireframe(xe, ye, ze)
 
-    (position, coverage_area) = sat.position_and_coverage_area(time)
+    while time <= time_end:
+        sat.at(time)
 
-    ax.scatter(position.position.km[0], position.position.km[1], position.position.km[2], linewidths=5, color="red")
-    #ax.scatter(observer_position.itrs_xyz.km[0], observer_position.itrs_xyz.km[1], observer_position.itrs_xyz.km[2], linewidths=5, color="green")
+        (x, y, z) = sat.pos.km
+        (xs, ys, zs) = sat.sub_pos.itrs_xyz.km
+        ax.scatter(x, y, z, linewidths=5, color="red")
+        #ax.scatter(observer_position.itrs_xyz.km[0], observer_position.itrs_xyz.km[1], observer_position.itrs_xyz.km[2], linewidths=5, color="green")
+        ax.scatter(xs, ys, zs, linewidths=5, color="red")
+        #ax.plot(sat.coverage_area.itrs_xyz.km[0], sat.coverage_area.itrs_xyz.km[1], sat.coverage_area.itrs_xyz.km[2], color = "red")
 
-    ax.plot(coverage_area.itrs_xyz.km[0], coverage_area.itrs_xyz.km[1], coverage_area.itrs_xyz.km[2], color = "red")
+        time += time_step
 
     antenna = SmallDipole(1e+9, 0.4, 1)
     r = 1.0e9
