@@ -1,8 +1,7 @@
 from skyfield.api import EarthSatellite, load, wgs84
 from skyfield.positionlib import Geocentric
-import datetime, pytz
+import datetime
 import numpy as np
-import matplotlib.pyplot as plt
 from geopy.distance import geodesic
 
 

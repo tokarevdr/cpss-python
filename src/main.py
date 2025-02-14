@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from satellite import Satellite, earth_sphere
+from antenna import SmallDipole
 
 
 def main():
@@ -38,6 +39,15 @@ def main():
     #ax.scatter(observer_position.itrs_xyz.km[0], observer_position.itrs_xyz.km[1], observer_position.itrs_xyz.km[2], linewidths=5, color="green")
 
     ax.plot(coverage_area.itrs_xyz.km[0], coverage_area.itrs_xyz.km[1], coverage_area.itrs_xyz.km[2], color = "red")
+
+    antenna = SmallDipole(1e+9, 0.4, 1)
+    r = 1.0e9
+    theta = np.linspace(0, 2.0 * np.pi, 1000)
+
+    (_, et, _, _, _, _) = antenna.far_field(r, theta)
+
+    plt.figure()
+    plt.polar(theta, abs(et))
 
     plt.show()
 
