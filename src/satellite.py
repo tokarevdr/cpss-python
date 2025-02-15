@@ -26,10 +26,10 @@ class Satellite:
         sub_lat, _ = wgs84.latlon_of(geocentric)
         (ra, _, _) = geocentric.radec()
         sub_lon = Angle(radians=(ra.radians - self.right_ascension_of_greenwich_meridian(time).radians))
-        # sub_lat, sub_lon = self._subpoint_mashbits(geocentric, t)
-        print(sub_lat, sub_lon)
+        
         self.sub_pos = wgs84.latlon(sub_lat.degrees, sub_lon.degrees)
-        self.coverage_area = self._coverage_area(geocentric, t)
+        h = wgs84.height_of(geocentric).km
+        self.coverage_area = self._coverage_area(h, sub_lat, sub_lon, 10, 10)
 
 
     # Satellite Orbits Models, Methods and Applications (Dr. Oliver Montenbruck), p. 33
@@ -44,59 +44,29 @@ class Satellite:
         return Angle(degrees=degs)
 
 
-    def position_and_coverage_area(self, time: datetime):
-        t = self.ts.from_datetime(time)
-        geocentric = self.satellite.at(t)
-
-        coverage_area = self._coverage_area(geocentric, t)
-
-        return (geocentric, coverage_area)
-
-
-    def _coverage_area(self, position: Geocentric, time: Time):
+    def _coverage_area(self, h, lat, lon, n, m):
         # Угол видимости с учетом минимального угла места
-        h = wgs84.height_of(position).km
-        azimuths = linspace(0, 360, 50)
+        azimuths = linspace(0, 360, m)
         eps = 0
         R = wgs84.radius.km
         theta = arccos(R * cos(eps) / (R + h)) - eps
-        lat, lon = wgs84.latlon_of(position)
-        # lat, lon = self._subpoint_mashbits(position, time)
 
         # Радиус зоны покрытия
         d = R * theta
+        radiuses = linspace(0, d, n)
 
         boundary_lat = []
         boundary_lon = []
-        for azimuth in azimuths:
-            point = geodesic(kilometers=d).destination(point=(lat.degrees, lon.degrees), bearing=azimuth)
-            boundary_lat.append(point.latitude)
-            boundary_lon.append(point.longitude)
+        for radius in radiuses:
+            for azimuth in azimuths:
+                point = geodesic(kilometers=radius).destination(point=(lat.degrees, lon.degrees), bearing=azimuth)
+                boundary_lat.append(point.latitude)
+                boundary_lon.append(point.longitude)
 
         coverage_area = wgs84.latlon(boundary_lat, boundary_lon)
 
         return coverage_area
     
-
-    def _subpoint_mashbits(self, position: Geocentric, time: Time):
-        r = position.distance().km
-        x = position.position.km[0]
-        y = position.position.km[1]
-        z = position.position.km[2]
-
-        alpha = arctan(y/x)
-        sigma = arcsin(z/r)
-
-        S = Angle(hours=time.gmst)
-
-        e_earth = 0.081813
-        lon = Angle(radians=arctan((sin(alpha) * cos(S.radians) - cos(alpha) * sin(S.radians)) / (cos(alpha) * cos(S.radians) + sin(alpha) * sin(S.radians))))
-        lat = Angle(radians=arctan(tan(sigma) / (1 - e_earth**2)))
-
-        return (lat, lon)
-
-        
-
 
 def earth_sphere(x0 = 0, y0 = 0, z0 = 0, n = 100, m = 100):
     r = wgs84.radius.km
