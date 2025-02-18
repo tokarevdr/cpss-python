@@ -19,8 +19,6 @@ def main():
 
     moscow_timezone = pytz.timezone("Europe/Moscow")
     time = datetime.datetime(2024, 6, 19, 18, 00, 10, 637, moscow_timezone)
-    time_step = datetime.timedelta(hours=2)
-    time_end = datetime.datetime(2024, 6, 19, 18, 00, 10, 673, moscow_timezone)
 
     # tle = '''Edelweiss (GEOSCAN)
     #          1 53385U 22096R   22269.14435733  .00009653  00000-0  37762-3 0  999 5
@@ -40,14 +38,11 @@ def main():
 
     ax.plot_wireframe(xe, ye, ze)
 
-    while time <= time_end:
-        sat.at(time)
+    sat.at(time)
 
-        (xs, ys, zs) = sat.sub_pos.itrs_xyz.km
-        ax.scatter(xs, ys, zs, linewidths=5, color="red")
-        ax.plot(sat.coverage_area.itrs_xyz.km[0], sat.coverage_area.itrs_xyz.km[1], sat.coverage_area.itrs_xyz.km[2], color = "red")
-
-        time += time_step
+    (xs, ys, zs) = sat.sub_pos.itrs_xyz.km
+    ax.scatter(xs, ys, zs, linewidths=5, color="red")
+    ax.plot(sat.coverage_area.itrs_xyz.km[0], sat.coverage_area.itrs_xyz.km[1], sat.coverage_area.itrs_xyz.km[2], color = "red")
 
     antenna = SmallDipole(Angle(degrees=60), Angle(degrees=30))
 
