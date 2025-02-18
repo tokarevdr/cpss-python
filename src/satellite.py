@@ -1,9 +1,7 @@
 from skyfield.api import EarthSatellite, load, wgs84
-from skyfield.positionlib import Geocentric
-from skyfield.timelib import Time
 from skyfield.units import Angle, Distance
 import datetime
-from numpy import sin, cos, arccos, arcsin, arctan, linspace, pi, reshape, ones, tan
+from numpy import sin, cos, arccos, linspace, pi, reshape, ones
 from geopy.distance import geodesic
 
 
@@ -29,7 +27,7 @@ class Satellite:
         
         self.sub_pos = wgs84.latlon(sub_lat.degrees, sub_lon.degrees)
         h = wgs84.height_of(geocentric).km
-        self.coverage_area = self._coverage_area(h, sub_lat, sub_lon, 10, 10)
+        self.coverage_area = self._coverage_area(h, sub_lat, sub_lon, 100)
 
 
     # Satellite Orbits Models, Methods and Applications (Dr. Oliver Montenbruck), p. 33
@@ -44,7 +42,7 @@ class Satellite:
         return Angle(degrees=degs)
 
 
-    def _coverage_area(self, h, lat, lon, n, m):
+    def _coverage_area(self, h, lat, lon, m):
         # Угол видимости с учетом минимального угла места
         azimuths = linspace(0, 360, m)
         eps = 0
@@ -53,15 +51,13 @@ class Satellite:
 
         # Радиус зоны покрытия
         d = R * theta
-        radiuses = linspace(0, d, n)
 
         boundary_lat = []
         boundary_lon = []
-        for radius in radiuses:
-            for azimuth in azimuths:
-                point = geodesic(kilometers=radius).destination(point=(lat.degrees, lon.degrees), bearing=azimuth)
-                boundary_lat.append(point.latitude)
-                boundary_lon.append(point.longitude)
+        for azimuth in azimuths:
+            point = geodesic(kilometers=d).destination(point=(lat.degrees, lon.degrees), bearing=azimuth)
+            boundary_lat.append(point.latitude)
+            boundary_lon.append(point.longitude)
 
         coverage_area = wgs84.latlon(boundary_lat, boundary_lon)
 
