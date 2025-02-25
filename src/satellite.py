@@ -1,7 +1,7 @@
 from skyfield.api import EarthSatellite, load, wgs84
 from skyfield.units import Angle, Distance
 import datetime
-from numpy import sin, cos, arccos, linspace, pi, reshape, ones
+from numpy import sin, cos, arccos, linspace, pi, reshape, ones, zeros, stack, transpose, arctan, sqrt, array
 from geopy.distance import geodesic
 
 
@@ -19,7 +19,7 @@ class Satellite:
     def at(self, time: datetime):
         t = self.ts.from_datetime(time)
         geocentric = self.satellite.at(t)
-        self.pos = geocentric.position
+        self.pos = geocentric
         self.r = geocentric.distance()
         sub_lat, _ = wgs84.latlon_of(geocentric)
         (ra, _, _) = geocentric.radec()
@@ -62,6 +62,51 @@ class Satellite:
         coverage_area = wgs84.latlon(boundary_lat, boundary_lon)
 
         return coverage_area
+    
+
+    def altaz(self, latitude: Angle, longitude: Angle, time: datetime):
+        THETA = self.right_ascension_of_greenwich_meridian(time).radians
+
+        Rz = zeros((3, 3))
+        Rz[0][0] = cos(THETA)
+        Rz[1][0] = -sin(THETA)
+        Rz[0][1] = sin(THETA)
+        Rz[1][1] = cos(THETA)
+        Rz[2][2] = 1
+
+        r_ef = Rz @ [[self.pos.position.km[0]], [self.pos.position.km[1]], [self.pos.position.km[2]]]
+
+        R = wgs84.radius.km * array([[cos(latitude.radians) * cos(longitude.radians)], [cos(latitude.radians) * sin(longitude.radians)] ,[sin(latitude.radians)]])
+    
+        s_ef = r_ef - R
+
+        e_E = [-sin(longitude.radians), cos(longitude.radians), 0]
+        e_N = [-sin(latitude.radians) * cos(longitude.radians), -sin(latitude.radians) * sin(longitude.radians), cos(latitude.radians)]
+        e_Z = [cos(latitude.radians) * cos(longitude.radians), cos(latitude.radians) * sin(longitude.radians), sin(latitude.radians)]
+
+        E = transpose(stack((e_E, e_N, e_Z), axis=-1))
+
+        s = E @ s_ef
+
+        print(s)
+
+        s_E = s[0][0]
+        s_N = s[1][0]
+        s_Z = s[2][0]
+
+        A = arctan(s_E / s_N)
+        El = arctan(s_Z / sqrt(s_E**2 + s_N**2))
+
+        return (Angle(radians=El), Angle(radians=A))
+
+    def is_visible(self, pos, time: datetime):
+        diff = self.pos - pos
+        t = self.ts.from_datetime(time)
+        topocentric = diff.at(t)
+
+        alt, _, _ = topocentric.altaz()
+
+        return alt.degrees > 0
     
 
 def earth_sphere(x0 = 0, y0 = 0, z0 = 0, n = 100, m = 100):

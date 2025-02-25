@@ -6,6 +6,7 @@ from pyproj import Geod
 
 from satellite import Satellite, earth_sphere
 from antenna import SmallDipole, Angle
+from vessel import Vessel
 
 import cartopy.crs as ccrs
 from cartopy.io.shapereader import Reader
@@ -18,7 +19,9 @@ def main():
     print("Hello!")
 
     moscow_timezone = pytz.timezone("Europe/Moscow")
-    time = datetime.datetime(2024, 6, 19, 18, 00, 10, 637, moscow_timezone)
+    time = datetime.datetime(2025, 2, 1, 9, 00, 10, 637, moscow_timezone)
+    lat = 60
+    lon = 30
 
     # tle = '''Edelweiss (GEOSCAN)
     #          1 53385U 22096R   22269.14435733  .00009653  00000-0  37762-3 0  999 5
@@ -44,7 +47,7 @@ def main():
     ax.scatter(xs, ys, zs, linewidths=5, color="red")
     ax.plot(sat.coverage_area.itrs_xyz.km[0], sat.coverage_area.itrs_xyz.km[1], sat.coverage_area.itrs_xyz.km[2], color = "red")
 
-    antenna = SmallDipole(Angle(degrees=60), Angle(degrees=30))
+    antenna = SmallDipole(Angle(degrees=lat), Angle(degrees=lon), 1e+6, 0.1, 0.2, 0 * np.pi/180, 0 * np.pi/180, 10, 5)
 
     radiaton_area = antenna.radiation_area()
     
@@ -79,6 +82,9 @@ def main():
     intersect_area, _ = geod.geometry_area_perimeter(intersection_poly)
 
     print(f'Intersection area: {abs(intersect_area / 1e+6)} km^2')
+
+    vessel = Vessel(Angle(degrees=lat), Angle(degrees=lon))
+    print(vessel.can_communicate(sat, antenna, time))
 
     plt.show()
 
