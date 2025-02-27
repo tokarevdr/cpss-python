@@ -2,11 +2,12 @@ from skyfield.api import EarthSatellite, load, wgs84
 from skyfield.units import Angle, Distance
 import datetime
 from numpy import sin, cos, arccos, linspace, pi, reshape, ones, zeros, stack, transpose, arctan, sqrt, array
+from numpy.linalg import norm
 from geopy.distance import geodesic
 
 
 class Satellite:
-    def __init__(self, tle: str):
+    def __init__(self, tle: str, power: float, gain: float):
         lines = tle.split('\n')
         self.ts = load.timescale()
         self.satellite = EarthSatellite(lines[1].strip(), lines[2].strip(), lines[0].strip())
@@ -14,6 +15,8 @@ class Satellite:
         self.dist = Distance(au=0)
         self.sub_pos = 0
         self.coverage_area = []
+        self.power = power
+        self.gain = gain
 
 
     def at(self, time: datetime):
@@ -96,8 +99,9 @@ class Satellite:
 
         A = arctan(s_E / s_N)
         El = arctan(s_Z / sqrt(s_E**2 + s_N**2))
+        dist = norm(s)
 
-        return (Angle(radians=El), Angle(radians=A))
+        return (Angle(radians=El), Angle(radians=A), Distance(km=dist))
 
     def is_visible(self, pos, time: datetime):
         diff = self.pos - pos

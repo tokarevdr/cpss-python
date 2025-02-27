@@ -1,8 +1,6 @@
 import datetime, pytz
 import matplotlib.pyplot as plt
-import numpy as np
-from shapely.geometry import Polygon
-from pyproj import Geod
+
 
 from satellite import Satellite, earth_sphere
 from antenna import SmallDipole, Angle
@@ -20,8 +18,6 @@ def main():
 
     moscow_timezone = pytz.timezone("Europe/Moscow")
     time = datetime.datetime(2025, 2, 1, 9, 00, 10, 637, moscow_timezone)
-    lat = 60
-    lon = 30
 
     # tle = '''Edelweiss (GEOSCAN)
     #          1 53385U 22096R   22269.14435733  .00009653  00000-0  37762-3 0  999 5
@@ -31,7 +27,7 @@ def main():
              1 17181U 86096A   24343.04493793  .00000019  00000-0  00000-0 0  9992
              2 17181  13.1563 343.6233 0041591 313.7972 237.2580  0.98925627146461'''
 
-    sat = Satellite(tle)
+    sat = Satellite(tle, 10, 1)
 
     (xe, ye, ze) = earth_sphere(n = 10, m = 10)
 
@@ -47,12 +43,12 @@ def main():
     ax.scatter(xs, ys, zs, linewidths=5, color="red")
     ax.plot(sat.coverage_area.itrs_xyz.km[0], sat.coverage_area.itrs_xyz.km[1], sat.coverage_area.itrs_xyz.km[2], color = "red")
 
-    antenna = SmallDipole(Angle(degrees=lat), Angle(degrees=lon), 1e+6, 0.1, 0.2, 0 * np.pi/180, 0 * np.pi/180, 10, 5)
+    antenna = SmallDipole(1e+6, Angle(degrees=0), Angle(degrees=33), 3.7e-12)
 
-    radiaton_area = antenna.radiation_area()
-    
-    ax.scatter(antenna.position.itrs_xyz.km[0], antenna.position.itrs_xyz.km[1], antenna.position.itrs_xyz.km[2], linewidths=5, color="green")
-    ax.plot(radiaton_area.itrs_xyz.km[0], radiaton_area.itrs_xyz.km[1], radiaton_area.itrs_xyz.km[2], color="green")
+    vessel = Vessel(Angle(degrees=60), Angle(degrees=30))
+    print(vessel.can_communicate(sat, antenna, time))
+
+    ax.scatter(vessel.position.itrs_xyz.km[0], vessel.position.itrs_xyz.km[1], vessel.position.itrs_xyz.km[2], linewidths=5, color="green")
     
     fig = plt.figure(figsize=(10, 5))
     ax2 = fig.add_subplot(1, 1, 1, projection=ccrs.Robinson())
@@ -65,26 +61,9 @@ def main():
     ax2.set_global()
     ax2.stock_img()
     ax2.coastlines()
-    ax2.plot(antenna.position.longitude.degrees, antenna.position.latitude.degrees, 'o', color='green', transform=ccrs.PlateCarree())
-    ax2.plot(radiaton_area.longitude.degrees, radiaton_area.latitude.degrees, color='green', transform=ccrs.PlateCarree())
+    ax2.plot(vessel.position.longitude.degrees, vessel.position.latitude.degrees, 'o', color='green', transform=ccrs.PlateCarree())
     ax2.plot(sat.sub_pos.longitude.degrees, sat.sub_pos.latitude.degrees, 'o', transform=ccrs.PlateCarree(), color='red')
     ax2.plot(sat.coverage_area.longitude.degrees, sat.coverage_area.latitude.degrees, transform=ccrs.PlateCarree(), color='red')
-    
-    area1 = np.stack((radiaton_area.longitude.degrees, radiaton_area.latitude.degrees), axis=-1)
-    area2 = np.stack((sat.coverage_area.longitude.degrees, sat.coverage_area.latitude.degrees), axis=-1)
- 
-    poly1 = Polygon(area1)
-    poly2 = Polygon(area2)
-
-    intersection_poly = poly2.intersection(poly1)
-
-    geod = Geod(ellps='WGS84')
-    intersect_area, _ = geod.geometry_area_perimeter(intersection_poly)
-
-    print(f'Intersection area: {abs(intersect_area / 1e+6)} km^2')
-
-    vessel = Vessel(Angle(degrees=lat), Angle(degrees=lon))
-    print(vessel.can_communicate(sat, antenna, time))
 
     plt.show()
 

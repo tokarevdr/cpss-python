@@ -12,22 +12,18 @@ class Vessel:
 
 
     def can_communicate(self, sat: Satellite, antenna: LinearAntenna, time: datetime):
-        # diff = sat.satellite - self.position
-        # t = sat.ts.from_datetime(time)
-        # topocentric = diff.at(t)
+        alt, az, dist = sat.altaz(self.position.latitude, self.position.longitude, time)
 
-        # alt, az, _ = topocentric.altaz()
-
-        alt, az = sat.altaz(self.position.latitude, self.position.longitude, time)
-
-        print(alt, az)
+        print(alt, az, dist.km)
 
         visible = alt.degrees > 0
 
         if visible:
             print('visible')
 
-        detectable = antenna.is_detectable(alt.radians - antenna.altitude, az.radians - antenna.azimuth, 5, 1)
+        az_diff = Angle(radians=(az.radians - antenna.azimuth.radians))
+        elev_diff = Angle(radians=(alt.radians - antenna.elevation.radians))
+        detectable = antenna.is_input_detectable(sat.power, sat.gain, az_diff, elev_diff, dist)
 
         if detectable:
             print('detectable')
