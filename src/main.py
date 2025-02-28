@@ -1,9 +1,10 @@
 import datetime, pytz
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 from satellite import Satellite, earth_sphere
-from antenna import SmallDipole, Angle
+from antenna import FiniteLengthDipole, Angle
 from vessel import Vessel
 
 import cartopy.crs as ccrs
@@ -43,7 +44,14 @@ def main():
     ax.scatter(xs, ys, zs, linewidths=5, color="red")
     ax.plot(sat.coverage_area.itrs_xyz.km[0], sat.coverage_area.itrs_xyz.km[1], sat.coverage_area.itrs_xyz.km[2], color = "red")
 
-    antenna = SmallDipole(1e+6, Angle(degrees=0), Angle(degrees=33), 3.7e-12)
+    antenna = FiniteLengthDipole(1e+6, Angle(degrees=-15), Angle(degrees=25), 3.7e-12)
+
+    _, axs = plt.subplots(1, 2, subplot_kw={'projection': 'polar'})
+    theta = np.linspace(0, 360, 100) * np.pi/180
+    phi = np.linspace(0, 360, 100) * np.pi/180
+
+    axs[0].plot(theta, antenna.gain(theta, 0))
+    axs[1].plot(phi, antenna.gain(0, phi))
 
     vessel = Vessel(Angle(degrees=60), Angle(degrees=30))
     print(vessel.can_communicate(sat, antenna, time))

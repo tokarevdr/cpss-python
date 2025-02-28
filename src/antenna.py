@@ -1,5 +1,5 @@
 import abc
-from numpy import cos
+from numpy import sin, cos, ones
 from scipy.constants import c
 from skyfield.units import Angle, Distance
 
@@ -40,4 +40,19 @@ class SmallDipole(LinearAntenna):
     
 
     def gain(self, theta: float, phi: float):
-        return cos(theta)**2
+        if hasattr(phi, 'shape'):
+            return cos(theta)**2 * ones(phi.shape)
+        else:
+            return cos(theta)**2
+        
+
+class FiniteLengthDipole(LinearAntenna):
+    def __init__(self, frequency: float, azimuth: Angle, elevation: Angle,
+                 minimal_detectable_power: float):
+        super().__init__(frequency, azimuth, elevation,
+                         minimal_detectable_power)
+    
+
+    def gain(self, theta: float, phi: float):
+        return 0.5 * (cos(theta) * cos(phi) + 1)
+        
