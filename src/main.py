@@ -12,6 +12,7 @@ import sys
 sys.path.append('G:/Мой диск/MyEducation/ИТМО/ВКР/soft/')
 
 import vesradcom as vrc
+from vesradcom.units import Angle, Frequency, Power
 
 
 def earth_sphere(r = 1, x0 = 0, y0 = 0, z0 = 0, n = 100, m = 100):
@@ -39,8 +40,15 @@ def main():
              1 17181U 86096A   24343.04493793  .00000019  00000-0  00000-0 0  9992
              2 17181  13.1563 343.6233 0041591 313.7972 237.2580  0.98925627146461'''
 
+    simulation = vrc.simulation.Simulation()
     sat = vrc.satellite.Satellite(tle, 10, 1)
+    antenna = vrc.antenna.FiniteLengthDipole(Frequency(hz=1e+6), Angle(degrees=25), Angle(degrees=-15), Power(w=3.7e-12))
+    vessel = vrc.vessel.Vessel(antenna, Angle(degrees=60), Angle(degrees=30))
 
+    simulation.append_satellite(sat)
+    simulation.set_vessel(vessel)
+    simulation.set_current_datetime(time)
+    
     (xe, ye, ze) = earth_sphere(r = 6371, n = 10, m = 10)
 
     ax = plt.figure().add_subplot(projection="3d")
@@ -55,8 +63,6 @@ def main():
     ax.scatter(xs, ys, zs, linewidths=5, color="red")
     ax.plot(sat.coverage_area.itrs_xyz.km[0], sat.coverage_area.itrs_xyz.km[1], sat.coverage_area.itrs_xyz.km[2], color = "red")
 
-    antenna = vrc.antenna.FiniteLengthDipole(1e+6, vrc.units.Angle(degrees=-15), vrc.units.Angle(degrees=25), 3.7e-12)
-
     _, axs = plt.subplots(1, 2, subplot_kw={'projection': 'polar'})
     theta = np.linspace(0, 360, 100) * np.pi/180
     phi = np.linspace(0, 360, 100) * np.pi/180
@@ -64,10 +70,9 @@ def main():
     axs[0].plot(theta, antenna.gain(theta, 0))
     axs[1].plot(phi, antenna.gain(0, phi))
 
-    vessel = vrc.vessel.Vessel(vrc.units.Angle(degrees=60), vrc.units.Angle(degrees=30))
-    print(vessel.can_communicate(sat, antenna, time))
+    print(simulation.satellite_at(0).communication_possible)
 
-    ax.scatter(vessel.position.itrs_xyz.km[0], vessel.position.itrs_xyz.km[1], vessel.position.itrs_xyz.km[2], linewidths=5, color="green")
+    ax.scatter(vessel.position().itrs_xyz.km[0], vessel.position().itrs_xyz.km[1], vessel.position().itrs_xyz.km[2], linewidths=5, color="green")
     
     fig = plt.figure(figsize=(15, 7))
     ax2 = fig.add_subplot(1, 1, 1, projection=ccrs.Robinson())
@@ -81,7 +86,7 @@ def main():
     ax2.set_global()
     ax2.stock_img()
     ax2.coastlines()
-    ax2.plot(vessel.position.longitude.degrees, vessel.position.latitude.degrees, 'o', color='green', transform=ccrs.PlateCarree())
+    ax2.plot(vessel.position().longitude.degrees, vessel.position().latitude.degrees, 'o', color='green', transform=ccrs.PlateCarree())
     ax2.plot(sat.sub_pos.longitude.degrees, sat.sub_pos.latitude.degrees, 'o', transform=ccrs.PlateCarree(), color='red')
     ax2.plot(sat.coverage_area.longitude.degrees, sat.coverage_area.latitude.degrees, transform=ccrs.PlateCarree(), color='red')
 
