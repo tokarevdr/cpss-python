@@ -2,16 +2,27 @@ import datetime, pytz
 import matplotlib.pyplot as plt
 import numpy as np
 
-
-from satellite import Satellite, earth_sphere
-from antenna import FiniteLengthDipole, Angle
-from vessel import Vessel
-
 import cartopy.crs as ccrs
 from cartopy.io.shapereader import Reader
 from cartopy.feature import ShapelyFeature
 
 from glob import glob
+
+import sys
+sys.path.append('G:/Мой диск/MyEducation/ИТМО/ВКР/soft/')
+
+import vesradcom as vrc
+
+
+def earth_sphere(r = 1, x0 = 0, y0 = 0, z0 = 0, n = 100, m = 100):
+    u = np.reshape(np.linspace(0, np.pi, n), (n, 1))
+    v = np.reshape(np.linspace(0, 2*np.pi, m), (1, m))
+
+    x = x0 + r * np.sin(u) * np.cos(v)
+    y = y0 + r * np.sin(u) * np.sin(v)
+    z = z0 + r * np.cos(u) * np.ones((1, m))
+
+    return (x, y, z)
 
 
 def main():
@@ -28,9 +39,9 @@ def main():
              1 17181U 86096A   24343.04493793  .00000019  00000-0  00000-0 0  9992
              2 17181  13.1563 343.6233 0041591 313.7972 237.2580  0.98925627146461'''
 
-    sat = Satellite(tle, 10, 1)
+    sat = vrc.satellite.Satellite(tle, 10, 1)
 
-    (xe, ye, ze) = earth_sphere(n = 10, m = 10)
+    (xe, ye, ze) = earth_sphere(r = 6371, n = 10, m = 10)
 
     ax = plt.figure().add_subplot(projection="3d")
     a = 8e+3
@@ -44,7 +55,7 @@ def main():
     ax.scatter(xs, ys, zs, linewidths=5, color="red")
     ax.plot(sat.coverage_area.itrs_xyz.km[0], sat.coverage_area.itrs_xyz.km[1], sat.coverage_area.itrs_xyz.km[2], color = "red")
 
-    antenna = FiniteLengthDipole(1e+6, Angle(degrees=-15), Angle(degrees=25), 3.7e-12)
+    antenna = vrc.antenna.FiniteLengthDipole(1e+6, vrc.units.Angle(degrees=-15), vrc.units.Angle(degrees=25), 3.7e-12)
 
     _, axs = plt.subplots(1, 2, subplot_kw={'projection': 'polar'})
     theta = np.linspace(0, 360, 100) * np.pi/180
@@ -53,19 +64,20 @@ def main():
     axs[0].plot(theta, antenna.gain(theta, 0))
     axs[1].plot(phi, antenna.gain(0, phi))
 
-    vessel = Vessel(Angle(degrees=60), Angle(degrees=30))
+    vessel = vrc.vessel.Vessel(vrc.units.Angle(degrees=60), vrc.units.Angle(degrees=30))
     print(vessel.can_communicate(sat, antenna, time))
 
     ax.scatter(vessel.position.itrs_xyz.km[0], vessel.position.itrs_xyz.km[1], vessel.position.itrs_xyz.km[2], linewidths=5, color="green")
     
-    fig = plt.figure(figsize=(10, 5))
+    fig = plt.figure(figsize=(15, 7))
     ax2 = fig.add_subplot(1, 1, 1, projection=ccrs.Robinson())
 
     # shape_files_dir_path = 'G:/Мой диск/MyEducation/ИТМО/ВКР/soft/python/first_steps/10m_physical'
-    # shape_files = glob(shape_files_dir_path + '/*.shp')
+    # shape_files = glob(shape_files_dir_path + '/ne_10m_land.shp')
     # for shape_file in shape_files:
     #     shape_feature = ShapelyFeature(Reader(shape_file).geometries(), ccrs.PlateCarree(), facecolor='none')
     #     ax2.add_feature(shape_feature)
+
     ax2.set_global()
     ax2.stock_img()
     ax2.coastlines()
