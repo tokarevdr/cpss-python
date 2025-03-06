@@ -12,6 +12,7 @@ import sys
 sys.path.append('G:/Мой диск/MyEducation/ИТМО/ВКР/soft/')
 
 import vesradcom as vrc
+from vesradcom.entities import FiniteLengthDipole, Vessel, Satellite
 from vesradcom.units import Angle, Frequency, Power
 
 
@@ -40,10 +41,10 @@ def main():
              1 17181U 86096A   24343.04493793  .00000019  00000-0  00000-0 0  9992
              2 17181  13.1563 343.6233 0041591 313.7972 237.2580  0.98925627146461'''
 
-    simulation = vrc.simulation.Simulation()
-    sat = vrc.satellite.Satellite(tle, 10, 1)
-    antenna = vrc.antenna.FiniteLengthDipole(Frequency(hz=1e+6), Angle(degrees=25), Angle(degrees=-15), Power(w=3.7e-12))
-    vessel = vrc.vessel.Vessel(antenna, Angle(degrees=60), Angle(degrees=30))
+    simulation = vrc.Simulation()
+    sat = Satellite(tle, 10, 1)
+    antenna = FiniteLengthDipole(Frequency(hz=1e+6), Angle(degrees=25), Angle(degrees=-15), Power(w=3.7e-12))
+    vessel = Vessel(antenna, Angle(degrees=60), Angle(degrees=30))
 
     simulation.append_satellite(sat)
     simulation.set_vessel(vessel)
