@@ -107,8 +107,6 @@ def main():
 
     res_sim = vrc.from_bruteforce_result(simulation, results[0])
 
-    print(res_sim.current_datetime())
-
     draw_simulation(ax2, res_sim)
     
     plt.show()
