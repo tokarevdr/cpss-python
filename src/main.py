@@ -16,40 +16,40 @@ from vesradcom.entities import FiniteLengthDipole, Vessel, Satellite, Landmark, 
 from vesradcom.units import Angle, Frequency, Power, Distance, Velocity
 
 
-def draw_satellite(ax, sat: Satellite, color):
-    ax.plot(sat.subpoint_position().longitude.degrees, sat.subpoint_position().latitude.degrees, 'o', transform=ccrs.PlateCarree(), color=color)
-    ax.fill(*sat.coverage_area().exterior.xy, transform=ccrs.PlateCarree(), facecolor = 'grey', alpha = 0.2, edgecolor='grey')
-    ax.plot(*sat.coverage_area().exterior.xy, transform=ccrs.PlateCarree(), color=color)
-    ax.annotate(sat.title(), (sat.subpoint_position().longitude.degrees - 5, sat.subpoint_position().latitude.degrees + 3), transform=ccrs.PlateCarree(), color=color)
+def draw_satellite(ax, sat: Satellite, color, transform):
+    ax.plot(sat.subpoint_position().longitude.degrees, sat.subpoint_position().latitude.degrees, 'o', transform=transform, color=color)
+    ax.fill(*sat.coverage_area().exterior.xy, transform=transform, facecolor = 'grey', alpha = 0.2, edgecolor='grey')
+    ax.plot(*sat.coverage_area().exterior.xy, transform=transform, color=color)
+    ax.annotate(sat.title(), (sat.subpoint_position().longitude.degrees - 5, sat.subpoint_position().latitude.degrees + 3), transform=transform, color=color)
 
 
-def draw_vessel(ax, vessel: Vessel):
-    ax.plot(vessel.position().longitude.degrees, vessel.position().latitude.degrees, 'o', color='green', transform=ccrs.PlateCarree())
-    ax.annotate("", xytext=(vessel.position().longitude.degrees, vessel.position().latitude.degrees), xy=(vessel.position().longitude.degrees + 10 * np.sin(vessel.course().radians), vessel.position().latitude.degrees + 10 * np.cos(vessel.course().radians)), arrowprops=dict(arrowstyle="->"), transform=ccrs.PlateCarree())
+def draw_vessel(ax, vessel: Vessel, transform):
+    ax.plot(vessel.position().longitude.degrees, vessel.position().latitude.degrees, 'o', color='green', transform=transform)
+    ax.annotate("", xytext=(vessel.position().longitude.degrees, vessel.position().latitude.degrees), xy=(vessel.position().longitude.degrees + 10 * np.sin(vessel.course().radians), vessel.position().latitude.degrees + 10 * np.cos(vessel.course().radians)), arrowprops=dict(arrowstyle="->"), transform=transform)
 
 
-def draw_landmark(ax, landmark: Landmark):
-    ax.plot(landmark.position().longitude.degrees, landmark.position().latitude.degrees, 'o', transform=ccrs.PlateCarree(), color='blue')
-    ax.annotate(landmark.title(), (landmark.position().longitude.degrees - 5, landmark.position().latitude.degrees + 3), transform=ccrs.PlateCarree(), color='blue')
+def draw_landmark(ax, landmark: Landmark, transform):
+    ax.plot(landmark.position().longitude.degrees, landmark.position().latitude.degrees, 'o', transform=transform, color='blue')
+    ax.annotate(landmark.title(), (landmark.position().longitude.degrees - 5, landmark.position().latitude.degrees + 3), transform=transform, color='blue')
 
 
-def draw_station(ax, station: Station):
+def draw_station(ax, station: Station, transform):
     draw_landmark(ax, station)
-    ax.plot(*station.coverage_area().exterior.xy, transform=ccrs.PlateCarree(), color='blue')
+    ax.plot(*station.coverage_area().exterior.xy, transform=transform, color='blue')
 
 
-def draw_simulation(ax, sim: vrc.Simulation):
-    ax.plot(*sim.area().exterior.xy, '--', transform=ccrs.PlateCarree(), color='green')
-    draw_vessel(ax, sim.vessel())
+def draw_simulation(ax, sim: vrc.Simulation, transform):
+    ax.plot(*sim.area().exterior.xy, '--', transform=transform, color='green')
+    draw_vessel(ax, sim.vessel(), transform)
 
     for i in range(sim.satellite_count()):
-        draw_satellite(ax, sim.satellite_at(i), 'red')
+        draw_satellite(ax, sim.satellite_at(i), 'red', transform)
 
     for i in range(sim.landmark_count()):
-        draw_landmark(ax, sim.landmark_at(i))
+        draw_landmark(ax, sim.landmark_at(i), transform)
 
     for i in range(sim.station_count()):
-        draw_station(ax, sim.station_at(i))
+        draw_station(ax, sim.station_at(i), transform)
 
 
 def main():
@@ -67,13 +67,13 @@ def main():
              2 17181  13.1563 343.6233 0041591 313.7972 237.2580  0.98925627146461'''
     
     antenna = FiniteLengthDipole(Frequency(hz=1e+6), Power(w=3.7e-12), Power(w=12), Power(w=10))
-    vessel = Vessel(Angle(degrees=15), Angle(degrees=-48), Angle(degrees=30), Velocity(km_per_s=0.02))
-    area = [(-51, 48), (-15, 48), (-20, 12), (-51, 12)]
+    vessel = Vessel(Angle(degrees=15), Angle(degrees=-20), Angle(degrees=45), Velocity(km_per_s=0.02))
+    area = [(-90, -60), (-10, 60), (10, 60), (10, -60)]
 
     simulation = vrc.Simulation(area = area, antenna = antenna, vessel = vessel)
 
     simulation.append_satellite(Satellite(tle1, Power(10), 1))
-    simulation.append_satellite(Satellite(tle2, Power(15), 1))
+    simulation.append_satellite(Satellite(tle2, Power(30), 1))
     simulation.set_current_datetime(time)
     simulation.update()
 
@@ -81,12 +81,15 @@ def main():
         print(f'satellite {i} visible:', simulation.satellite_at(i).visible())
         print(f'satellite {i} detectable:', simulation.satellite_at(i).detectable())
 
-    
+    # projection = ccrs.AzimuthalEquidistant(central_latitude=simulation.vessel().position().latitude.degrees, central_longitude=simulation.vessel().position().longitude.degrees)
+    projection = ccrs.PlateCarree()
+    transform = ccrs.Geodetic()
+
     fig1 = plt.figure(figsize=(15, 7))
-    ax1 = fig1.add_subplot(1, 1, 1, projection=ccrs.Robinson())
+    ax1 = fig1.add_subplot(1, 1, 1, projection=projection)
 
     fig2 = plt.figure(figsize=(15, 7))
-    ax2 = fig2.add_subplot(1, 1, 1, projection=ccrs.Robinson())
+    ax2 = fig2.add_subplot(1, 1, 1, projection=projection)
 
     shape_files_dir_path = 'G:/Мой диск/MyEducation/ИТМО/ВКР/soft/python/first_steps/10m_physical'
     shape_files = glob(shape_files_dir_path + '/ne_10m_land.shp')
@@ -98,16 +101,19 @@ def main():
     ax1.set_global()
     ax2.set_global()
     
-    draw_simulation(ax1, simulation)
+    draw_simulation(ax1, simulation, transform)
 
     # ax2.plot(*simulation.satellite_at(0).track(time, time + datetime.timedelta(hours=1.55), 35), '.', transform=ccrs.PlateCarree(), color='red')
     # ax2.plot(*simulation.satellite_at(1).track(time, time + datetime.timedelta(hours=24), 60), '.', transform=ccrs.PlateCarree(), color='blue')
-    results = simulation.bruteforce(time + datetime.timedelta(hours=3), time + datetime.timedelta(hours=3.3))
-    print(results[0])
-
-    res_sim = vrc.from_bruteforce_result(simulation, results[0])
-
-    draw_simulation(ax2, res_sim)
+    results = simulation.bruteforce(time + datetime.timedelta(hours=3), time + datetime.timedelta(hours=3.5))
+    
+    if results:
+        print(results[0])
+        res_sim = vrc.from_bruteforce_result(simulation, results[0])
+        draw_simulation(ax2, res_sim, transform)
+        ax2.plot(*results[0].intersection.exterior.xy, '.', transform=transform, color='blue')
+    else:
+        ax2.annotate("Не удалось выбрать абонент для данной конфигурации", (-100, 0), transform=transform, color='red', size=24)
     
     plt.show()
 
