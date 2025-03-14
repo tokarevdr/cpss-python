@@ -9,7 +9,7 @@ from cartopy.feature import ShapelyFeature
 from glob import glob
 
 import sys
-sys.path.append('G:/Мой диск/MyEducation/ИТМО/ВКР/soft/')
+sys.path.append('/home/vlad/Documents/Python/')
 
 import vesradcom as vrc
 from vesradcom.entities import FiniteLengthDipole, Vessel, Satellite, Landmark, Station
@@ -34,16 +34,18 @@ def draw_landmark(ax, landmark: Landmark, transform):
 
 
 def draw_station(ax, station: Station, transform):
-    draw_landmark(ax, station)
+    draw_landmark(ax, station, transform)
     ax.plot(*station.coverage_area().exterior.xy, transform=transform, color='blue')
 
 
-def draw_simulation(ax, sim: vrc.Simulation, transform):
+def draw_simulation(ax, sim: vrc.Simulation, track_end_datetime: datetime, transform):
     ax.plot(*sim.area().exterior.xy, '--', transform=transform, color='green')
     draw_vessel(ax, sim.vessel(), transform)
 
     for i in range(sim.satellite_count()):
         draw_satellite(ax, sim.satellite_at(i), 'red', transform)
+        track = sim.satellite_at(i).track(sim.current_datetime(), track_end_datetime, datetime.timedelta(minutes=5))
+        ax.plot(track.longitude.degrees, track.latitude.degrees, '--', transform=transform, color='red')
 
     for i in range(sim.landmark_count()):
         draw_landmark(ax, sim.landmark_at(i), transform)
@@ -52,34 +54,55 @@ def draw_simulation(ax, sim: vrc.Simulation, transform):
         draw_station(ax, sim.station_at(i), transform)
 
 
+def draw_result(ax, sim: vrc.Simulation, track_start_datetime: datetime, transform):
+    ax.plot(*sim.area().exterior.xy, '--', transform=transform, color='green')
+    draw_vessel(ax, sim.vessel(), transform)
+
+    for i in range(sim.satellite_count()):
+        draw_satellite(ax, sim.satellite_at(i), 'blue', transform)
+        track = sim.satellite_at(i).track(track_start_datetime, sim.current_datetime(), datetime.timedelta(minutes=5))
+        ax.plot(track.longitude.degrees, track.latitude.degrees, '--', transform=transform, color='blue')
+
+
 def main():
     print("Hello!")
 
     moscow_timezone = pytz.timezone("Europe/Moscow")
-    time = datetime.datetime(2025, 2, 1, 6, 00, 10, 637, moscow_timezone)
+    current_datetime = datetime.datetime(2025, 3, 14, 13, 0, 0, tzinfo=moscow_timezone)
+
+    communication_session_start_time = current_datetime + datetime.timedelta(hours=2)
+    communication_session_end_time = current_datetime + datetime.timedelta(hours=2.5)
 
     tle1 = '''Спутник 1
              1 53385U 22096R   22269.14435733  .00009653  00000-0  37762-3 0  999 5
              2 53385  97.4313 170.3195 0002683 298.0162 199.7004 15.26041929  732 7'''
 
-    tle2 = '''Спутник 2
-             1 17181U 86096A   24343.04493793  .00000019  00000-0  00000-0 0  9992
-             2 17181  13.1563 343.6233 0041591 313.7972 237.2580  0.98925627146461'''
+    tle2 = '''MERIDIAN-9
+    1 45254U 20015A   24344.16116386  .00000028  00000-0  00000+0 0  9996
+    2 45254  64.9856  20.3505 6961787 286.4695  12.1378  2.00618940 35177'''
     
     antenna = FiniteLengthDipole(Frequency(hz=1e+6), Power(w=3.7e-12), Power(w=12), Power(w=10))
     vessel = Vessel(Angle(degrees=15), Angle(degrees=-20), Angle(degrees=45), Velocity(km_per_s=0.02))
-    area = [(-90, -60), (-10, 60), (10, 60), (10, -60)]
+    area = [(-52, 40), (-21, 40),  (-19, 12), (-52, 12)]
 
     simulation = vrc.Simulation(area = area, antenna = antenna, vessel = vessel)
 
-    simulation.append_satellite(Satellite(tle1, Power(10), 1))
-    simulation.append_satellite(Satellite(tle2, Power(30), 1))
-    simulation.set_current_datetime(time)
+    # simulation.append_satellite(Satellite(tle1, Power(10), 1))
+    simulation.append_satellite(Satellite(tle2, Power(15), 1))
+    simulation.set_current_datetime(current_datetime)
     simulation.update()
 
     for i in range(simulation.satellite_count()):
         print(f'satellite {i} visible:', simulation.satellite_at(i).visible())
         print(f'satellite {i} detectable:', simulation.satellite_at(i).detectable())
+
+    results = simulation.bruteforce(communication_session_start_time, communication_session_end_time)
+
+    res_sim = vrc.Simulation()
+
+    if results:
+        print(results[0])
+        res_sim = vrc.from_bruteforce_result(simulation, results[0])
 
     # projection = ccrs.AzimuthalEquidistant(central_latitude=simulation.vessel().position().latitude.degrees, central_longitude=simulation.vessel().position().longitude.degrees)
     projection = ccrs.PlateCarree()
@@ -88,32 +111,21 @@ def main():
     fig1 = plt.figure(figsize=(15, 7))
     ax1 = fig1.add_subplot(1, 1, 1, projection=projection)
 
-    fig2 = plt.figure(figsize=(15, 7))
-    ax2 = fig2.add_subplot(1, 1, 1, projection=projection)
-
-    shape_files_dir_path = 'G:/Мой диск/MyEducation/ИТМО/ВКР/soft/python/first_steps/10m_physical'
+    shape_files_dir_path = '/home/vlad/Documents/10m_physical'
     shape_files = glob(shape_files_dir_path + '/ne_10m_land.shp')
     for shape_file in shape_files:
         shape_feature = ShapelyFeature(Reader(shape_file).geometries(), ccrs.PlateCarree(), facecolor='none', alpha = 0.5)
         ax1.add_feature(shape_feature)
-        ax2.add_feature(shape_feature)
 
     ax1.set_global()
-    ax2.set_global()
     
-    draw_simulation(ax1, simulation, transform)
-
-    # ax2.plot(*simulation.satellite_at(0).track(time, time + datetime.timedelta(hours=1.55), 35), '.', transform=ccrs.PlateCarree(), color='red')
-    # ax2.plot(*simulation.satellite_at(1).track(time, time + datetime.timedelta(hours=24), 60), '.', transform=ccrs.PlateCarree(), color='blue')
-    results = simulation.bruteforce(time + datetime.timedelta(hours=3), time + datetime.timedelta(hours=3.5))
+    draw_simulation(ax1, simulation, communication_session_end_time, transform)
     
     if results:
-        print(results[0])
-        res_sim = vrc.from_bruteforce_result(simulation, results[0])
-        draw_simulation(ax2, res_sim, transform)
-        ax2.plot(*results[0].intersection.exterior.xy, '.', transform=transform, color='blue')
-    else:
-        ax2.annotate("Не удалось выбрать абонент для данной конфигурации", (-100, 0), transform=transform, color='red', size=24)
+        draw_result(ax1, res_sim, current_datetime, transform)
+        ax1.plot(*results[0].intersection.exterior.xy, '.', transform=transform, color='blue')
+
+    print(simulation.satellite_at(0).altitude(), simulation.satellite_at(0).azimuth())
     
     plt.show()
 
