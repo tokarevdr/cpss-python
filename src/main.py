@@ -1,10 +1,13 @@
 import datetime, pytz
+from copy import copy
 import matplotlib.pyplot as plt
 import numpy as np
 
 import cartopy.crs as ccrs
 from cartopy.io.shapereader import Reader
 from cartopy.feature import ShapelyFeature
+
+import pygad
 
 from glob import glob
 
@@ -118,7 +121,7 @@ def main():
     
     antenna = FiniteLengthDipole(Frequency(hz=1e+6), Power(w=3.7e-12), Power(w=12), Power(w=10))
     vessel = Vessel(Angle(degrees=-10), Angle(degrees=-15), Angle(degrees=20), Velocity(km_per_s=0.02))
-    area = [(-73, 40), (-10, 40), (-18, 22), (-18, 12), (-8, 2.6), (8, 2.6), (8, -35), (-49, -35), (-32, -6), (-76, 31)]
+    area = [(-73, 40), (-20, 40), (-20, 20), (-73, 20)]
 
     simulation = vrc.Simulation(area = area, antenna = antenna, vessel = vessel)
 
@@ -128,17 +131,74 @@ def main():
     simulation.set_current_datetime(current_datetime)
     simulation.update()
 
-    for i in range(simulation.satellite_count()):
-        print(f'satellite {i} visible:', simulation.satellite_at(i).visible())
-        print(f'satellite {i} detectable:', simulation.satellite_at(i).detectable())
+    xx, yy = simulation.area().exterior.coords.xy
+    lons = xx.tolist()
+    lats = yy.tolist()
+    gene_space = [[i for i in range(int(communication_session_start_time.timestamp()), int(communication_session_end_time.timestamp()))],
+                [i for i in range(simulation.satellite_count())],
+                {'low': 20, 'high': 40},
+                {'low': -73, 'high': -20},
+                [i for i in range(0, 360)]]
 
-    results = simulation.bruteforce(communication_session_start_time, communication_session_end_time)
+    def fitness_func(ga_instance, solution, solution_idx) -> float:
+        time = datetime.datetime.fromtimestamp(solution[0], moscow_timezone)
+        sat = copy(simulation.satellite_at(int(solution[1])))
+        sat.at(time)
 
-    res_sim = vrc.Simulation()
+        simulation.set_vessel_position(Angle(degrees=solution[2]), Angle(degrees=solution[3]))
 
-    if results:
-        print(results[0])
-        res_sim = vrc.from_bruteforce_result(simulation, results[0])
+        power = simulation.received_power_from_satellite(sat, Angle(degrees=solution[4]))
+
+        fitness1 = power
+        fitness2 = 1.0 / ((time - communication_session_start_time).total_seconds() + 1)
+
+        return fitness1
+
+    fitness_function = fitness_func
+    num_generations = 1000
+    num_parents_mating = 4
+    sol_per_pop = 10
+    num_genes = 5
+
+    init_range_low = 0
+    init_range_high = 1
+
+    parent_selection_type = "tournament"
+    keep_parents = 1
+
+    crossover_type = "single_point"
+
+    mutation_type = "adaptive"
+    mutation_percent_genes = [50, 20]
+
+    ga_instance = pygad.GA(num_generations=num_generations,
+                        num_parents_mating=num_parents_mating,
+                        fitness_func=fitness_function,
+                        sol_per_pop=sol_per_pop,
+                        num_genes=num_genes,
+                        init_range_low=init_range_low,
+                        init_range_high=init_range_high,
+                        parent_selection_type=parent_selection_type,
+                        keep_parents=keep_parents,
+                        crossover_type=crossover_type,
+                        mutation_type=mutation_type,
+                        mutation_percent_genes=mutation_percent_genes,
+                        gene_space=gene_space)
+    
+    ga_instance.run()
+
+    solution, solution_fitness, solution_idx = ga_instance.best_solution()
+
+    print("Parameters of the best solution : {solution}".format(solution=solution))
+    print("Fitness value of the best solution = {solution_fitness}".format(solution_fitness=solution_fitness))
+
+    result = vrc.SimulationResult()
+    result.time = datetime.datetime.fromtimestamp(solution[0], moscow_timezone)
+    result.sat_num = int(solution[1])
+    result.point = (Angle(degrees=solution[2]), Angle(degrees=solution[3]))
+    result.course = Angle(degrees=solution[4])
+    
+    res_sim = vrc.from_simulation_result(simulation, result)
 
     # projection = ccrs.AzimuthalEquidistant(central_latitude=simulation.vessel().position().latitude.degrees, central_longitude=simulation.vessel().position().longitude.degrees)
     projection = ccrs.PlateCarree()
@@ -161,8 +221,7 @@ def main():
     
     draw_simulation(ax1, simulation, communication_session_start_time, communication_session_end_time, transform=transform)
     
-    if results:
-        draw_result_sim(ax2, res_sim, communication_session_start_time, communication_session_end_time, transform=transform)
+    draw_result_sim(ax2, res_sim, communication_session_start_time, communication_session_end_time, transform=transform)
     
     plt.show()
 
