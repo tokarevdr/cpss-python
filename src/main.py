@@ -6,6 +6,7 @@ import numpy as np
 import cartopy.crs as ccrs
 from cartopy.io.shapereader import Reader
 from cartopy.feature import ShapelyFeature
+from geopy.distance import geodesic
 
 import pygad
 
@@ -120,14 +121,14 @@ def main():
     2 48274  41.4641 235.9815 0006472 344.7039  15.3603 15.61470209221388'''
     
     antenna = FiniteLengthDipole(Frequency(hz=1e+6), Power(w=3.7e-12), Power(w=12), Power(w=10))
-    vessel = Vessel(Angle(degrees=-10), Angle(degrees=-15), Angle(degrees=20), Velocity(km_per_s=0.02))
+    vessel = Vessel(Angle(degrees=30), Angle(degrees=-45), Angle(degrees=20), Velocity(km_per_s=0.02))
     area = [(-73, 40), (-20, 40), (-20, 20), (-73, 20)]
 
     simulation = vrc.Simulation(area = area, antenna = antenna, vessel = vessel)
 
-    simulation.append_satellite(Satellite(tle1, Power(0.4), 1))
-    simulation.append_satellite(Satellite(tle2, Power(0.4), 1)) 
-    simulation.append_satellite(Satellite(tle3, Power(0.4), 1))
+    simulation.append_satellite(Satellite(tle1, Power(1), 1))
+    simulation.append_satellite(Satellite(tle2, Power(5), 1)) 
+    simulation.append_satellite(Satellite(tle3, Power(1), 1))
     simulation.set_current_datetime(current_datetime)
     simulation.update()
 
@@ -139,23 +140,27 @@ def main():
                 {'low': 20, 'high': 40},
                 {'low': -73, 'high': -20},
                 [i for i in range(0, 360)]]
+    
+    sim_copy = copy(simulation)
+    sim_copy.set_vessel(copy(simulation.vessel()))
 
     def fitness_func(ga_instance, solution, solution_idx) -> float:
         time = datetime.datetime.fromtimestamp(solution[0], moscow_timezone)
-        sat = copy(simulation.satellite_at(int(solution[1])))
+        sat = copy(sim_copy.satellite_at(int(solution[1])))
         sat.at(time)
 
-        simulation.set_vessel_position(Angle(degrees=solution[2]), Angle(degrees=solution[3]))
+        sim_copy.set_vessel_position(Angle(degrees=solution[2]), Angle(degrees=solution[3]))
 
-        power = simulation.received_power_from_satellite(sat, Angle(degrees=solution[4]))
+        power = sim_copy.received_power_from_satellite(sat, Angle(degrees=solution[4]))
 
         fitness1 = power
         fitness2 = 1.0 / ((time - communication_session_start_time).total_seconds() + 1)
+        fitness3 = 1.0 / np.abs(90 - sat.altitude().degrees)
 
         return fitness1
 
     fitness_function = fitness_func
-    num_generations = 1000
+    num_generations = 100
     num_parents_mating = 4
     sol_per_pop = 10
     num_genes = 5
@@ -163,13 +168,13 @@ def main():
     init_range_low = 0
     init_range_high = 1
 
-    parent_selection_type = "tournament"
+    parent_selection_type = "sss"
     keep_parents = 1
 
     crossover_type = "single_point"
 
-    mutation_type = "adaptive"
-    mutation_percent_genes = [50, 20]
+    mutation_type = "random"
+    mutation_percent_genes = 20
 
     ga_instance = pygad.GA(num_generations=num_generations,
                         num_parents_mating=num_parents_mating,
@@ -197,6 +202,13 @@ def main():
     result.sat_num = int(solution[1])
     result.point = (Angle(degrees=solution[2]), Angle(degrees=solution[3]))
     result.course = Angle(degrees=solution[4])
+
+    start_point = (simulation.vessel().position().latitude.degrees, simulation.vessel().position().longitude.degrees)
+    end_point = (solution[3], solution[2])
+    distance = geodesic(start_point, end_point).km
+    time_diff = result.time - simulation.current_datetime()
+    total_secs = time_diff.total_seconds()
+    result.velocity = Velocity(km_per_s=(distance/total_secs))
     
     res_sim = vrc.from_simulation_result(simulation, result)
 
