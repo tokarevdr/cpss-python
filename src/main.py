@@ -45,7 +45,7 @@ def draw_simulation(ax, sim: vrc.Simulation, track_start_datetime: datetime, tra
     draw_parameters(ax, sim.current_datetime(), sim.vessel().position().latitude, sim.vessel().position().longitude,
                     sim.vessel().course(), sim.vessel().velocity(), transform=transform)
 
-    colors = ['red', 'orange', 'blue']
+    colors = ['red', 'orange', 'blue', 'purple', 'brown']
     for i in range(sim.satellite_count()):
         draw_satellite(ax, sim.satellite_at(i), colors[i], transform)
         track = sim.satellite_at(i).track(track_start_datetime, track_end_datetime, datetime.timedelta(minutes=5))
@@ -77,10 +77,10 @@ def draw_result_sim(ax, sim: vrc.Simulation, track_start_datetime: datetime,  tr
 
 def params_to_text(current_datetime: datetime, lat: Angle, lon: Angle, course: Angle, velocity: Velocity) -> str:
     return f'''{current_datetime}\n
-Широта: {lat.degrees:.2f}, град\n
-Долгота: {lon.degrees:.2f}, град\n
-Курс: {course.degrees:.2f}, град\n
-Скорость: {velocity.km_per_s * 1000:.2f}, м/с'''
+Широта: {lat}\n
+Долгота: {lon}\n
+Курс: {course.degrees:.0f}deg\n
+Скорость: {velocity.km_per_s * 3600 * 0.539957:.1f} уз'''
 
 
 def results_to_text(current_datetime: datetime, lat: Angle, lon: Angle, course: Angle, velocity: Velocity, sat_name: str) -> str:
@@ -99,32 +99,44 @@ def main():
     print("Hello!")
 
     moscow_timezone = pytz.timezone("Europe/Moscow")
-    current_datetime = datetime.datetime(2025, 3, 14, 14, 0, 0, tzinfo=moscow_timezone)
+    current_datetime = datetime.datetime(2025, 4, 23, 23, 30, 0, tzinfo=moscow_timezone)
 
-    communication_session_start_time = current_datetime + datetime.timedelta(hours=19)
-    communication_session_end_time = current_datetime + datetime.timedelta(hours=19.5)
+    communication_session_start_time = current_datetime + datetime.timedelta(hours=8)
+    communication_session_end_time = current_datetime + datetime.timedelta(hours=8.2)
 
     tle1 = '''EDELVEIS
              1 53385U 22096R   22269.14435733  .00009653  00000-0  37762-3 0  999 5
              2 53385  97.4313 170.3195 0002683 298.0162 199.7004 15.26041929  732 7'''
 
-    tle2 = '''ISS (ZARYA)
+    tle2 = '''ZARYA
     1 25544U 98067A   25074.17888493  .00016842  00000+0  30206-3 0  9990
     2 25544  51.6358  52.6470 0006442  23.0781 337.0496 15.50021799500580'''
 
-    tle3 = '''CSS (TIANHE)
+    tle3 = '''TIANHE
     1 48274U 21035A   25073.70705526  .00024039  00000+0  27594-3 0  9992
     2 48274  41.4641 235.9815 0006472 344.7039  15.3603 15.61470209221388'''
+
+    tle4 = '''TERRA
+    1 25994U 99068A   25126.16595771  .00000685  00000-0  14981-3 0  9993
+    2 25994  98.0007 185.5514 0003652  82.0542 299.3950 14.60665808350303'''
+
+    tle5 = '''METEOR M2
+    1 40069U 14037A   25126.19554618  .00000227  00000-0  12333-3 0  9995
+    2 40069  98.4666 112.5440 0006615 131.1662 229.0088 14.21285278561501'''
     
     antenna = FiniteLengthDipole(Frequency(hz=1e+6), Power(w=3.7e-12), Power(w=12), Power(w=10))
-    vessel = Vessel(Angle(degrees=-10), Angle(degrees=-15), Angle(degrees=20), Velocity(km_per_s=0.02))
-    area = [(-73, 40), (-10, 40), (-18, 22), (-18, 12), (-8, 2.6), (8, 2.6), (8, -35), (-49, -35), (-32, -6), (-76, 31)]
+    vessel = Vessel(Angle(degrees=73), Angle(degrees=-3), Angle(degrees=320), Velocity(km_per_s=0.0154))
+    # area = [(-73, 40), (-10, 40), (-18, 22), (-18, 12), (-8, 2.6), (8, 2.6), (8, -35), (-49, -35), (-32, -6), (-76, 31)]
+    # area = [(64, 24), (78, 7), (90, 21), (101, -5), (125, -12), (112, -23), (112, -35), (27, -35)]
+    area = [(4.5, 62), (4.5, 59), (8, 57.5), (3, 52), (-3, 60), (-43, 60), (-21, 70), (-13, 80), (9, 80), (18, 73)]
 
     simulation = vrc.Simulation(area = area, antenna = antenna, vessel = vessel)
 
     simulation.append_satellite(Satellite(tle1, Power(0.4), 1))
     simulation.append_satellite(Satellite(tle2, Power(0.4), 1)) 
-    simulation.append_satellite(Satellite(tle3, Power(0.4), 1))
+    simulation.append_satellite(Satellite(tle3, Power(1), 1))
+    simulation.append_satellite(Satellite(tle4, Power(0.4), 1))
+    simulation.append_satellite(Satellite(tle5, Power(0.4), 1))
     simulation.set_current_datetime(current_datetime)
     simulation.update()
 
@@ -144,10 +156,12 @@ def main():
     projection = ccrs.PlateCarree()
     transform = ccrs.Geodetic()
 
-    fig1 = plt.figure(figsize=(15, 7))
+    fig1 = plt.figure(figsize=(9, 5))
     ax1 = fig1.add_subplot(1, 1, 1, projection=projection)
-    fig2 = plt.figure(figsize=(15, 7))
+    plt.tight_layout()
+    fig2 = plt.figure(figsize=(9, 5))
     ax2 = fig2.add_subplot(1, 1, 1, projection=projection)
+    plt.tight_layout()
 
     shape_files_dir_path = 'G:/Мой диск/MyEducation/ИТМО/ВКР/soft/python/first_steps/10m_physical'
     shape_files = glob(shape_files_dir_path + '/ne_10m_land.shp')
