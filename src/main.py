@@ -15,13 +15,21 @@ import vesradcom as vrc
 from vesradcom.entities import FiniteLengthDipole, Vessel, Satellite, Landmark, Station
 from vesradcom.units import Angle, Frequency, Power, Distance, Velocity
 
-
 def draw_satellite(ax, sat: Satellite, color, transform):
     ax.plot(sat.subpoint_position().longitude.degrees, sat.subpoint_position().latitude.degrees, 'o', transform=transform, color=color)
     ax.fill(*sat.coverage_area().exterior.xy, transform=transform, facecolor = 'grey', alpha = 0.2, edgecolor='grey')
     ax.plot(*sat.coverage_area().exterior.xy, transform=transform, color=color)
     ax.annotate(sat.title(), (sat.subpoint_position().longitude.degrees - 5, sat.subpoint_position().latitude.degrees + 3), transform=transform, color=color)
 
+
+def draw_satellite_with_start_position(ax, sat: Satellite, color, transform):
+    ax.plot(sat.subpoint_position().longitude.degrees, sat.subpoint_position().latitude.degrees, 'o', transform=transform, color=color)
+    ax.fill(*sat.coverage_area().exterior.xy, transform=transform, facecolor = 'grey', alpha = 0.2, edgecolor='grey')
+    ax.plot(*sat.coverage_area().exterior.xy, transform=transform, color=color)
+    ax.annotate(sat.title(), (sat.subpoint_position().longitude.degrees - 5, sat.subpoint_position().latitude.degrees + 3), transform=transform, color=color)
+    ax.plot(sat.subpoint_position_at_start.longitude.degrees, sat.subpoint_position_at_start.latitude.degrees, 'o', transform=transform, color=color)
+    ax.fill(*sat.coverage_area_at_start.exterior.xy, transform=transform, facecolor = 'grey', alpha = 0.2, edgecolor='grey')
+    ax.plot(*sat.coverage_area_at_start.exterior.xy, '--', transform=transform, color=color)
 
 def draw_vessel(ax, vessel: Vessel, transform):
     ax.plot(vessel.position().longitude.degrees, vessel.position().latitude.degrees, 'o', color='green', transform=transform)
@@ -47,7 +55,7 @@ def draw_simulation(ax, sim: vrc.Simulation, track_start_datetime: datetime, tra
 
     colors = ['red', 'orange', 'blue', 'purple', 'brown']
     for i in range(sim.satellite_count()):
-        draw_satellite(ax, sim.satellite_at(i), colors[i], transform)
+        draw_satellite_with_start_position(ax, sim.satellite_at(i), colors[i], transform)
         track = sim.satellite_at(i).track(track_start_datetime, track_end_datetime, datetime.timedelta(minutes=5))
         ax.plot(track.longitude.degrees, track.latitude.degrees, '--', transform=transform, color=colors[i])
         n = len(track.longitude.degrees)
