@@ -29,7 +29,7 @@ def draw_satellite_with_start_position(ax, sat: Satellite, color, transform):
     ax.annotate(sat.title(), (sat.subpoint_position().longitude.degrees - 5, sat.subpoint_position().latitude.degrees + 3), transform=transform, color=color)
     ax.plot(sat.subpoint_position_at_start.longitude.degrees, sat.subpoint_position_at_start.latitude.degrees, 'o', transform=transform, color=color)
     ax.fill(*sat.coverage_area_at_start.exterior.xy, transform=transform, facecolor = 'grey', alpha = 0.2, edgecolor='grey')
-    ax.plot(*sat.coverage_area_at_start.exterior.xy, '--', transform=transform, color=color)
+    ax.plot(*sat.coverage_area_at_start.exterior.xy, '-.', transform=transform, color=color)
 
 def draw_vessel(ax, vessel: Vessel, transform):
     ax.plot(vessel.position().longitude.degrees, vessel.position().latitude.degrees, 'o', color='green', transform=transform)
@@ -58,8 +58,6 @@ def draw_simulation(ax, sim: vrc.Simulation, track_start_datetime: datetime, tra
         draw_satellite_with_start_position(ax, sim.satellite_at(i), colors[i], transform)
         track = sim.satellite_at(i).track(track_start_datetime, track_end_datetime, datetime.timedelta(minutes=5))
         ax.plot(track.longitude.degrees, track.latitude.degrees, '--', transform=transform, color=colors[i])
-        n = len(track.longitude.degrees)
-        ax.annotate("", xytext=(track.longitude.degrees[n//2], track.latitude.degrees[n//2]), xy=(track.longitude.degrees[n//2+1], track.latitude.degrees[n//2+1]), arrowprops=dict(facecolor=colors[i], edgecolor=colors[i]), transform=transform)
 
     for i in range(sim.landmark_count()):
         draw_landmark(ax, sim.landmark_at(i), transform)
@@ -79,15 +77,18 @@ def draw_result_sim(ax, sim: vrc.Simulation, track_start_datetime: datetime,  tr
         draw_satellite(ax, sim.satellite_at(i), 'blue', transform)
         track = sim.satellite_at(i).track(track_start_datetime, track_end_datetime, datetime.timedelta(minutes=5))
         ax.plot(track.longitude.degrees, track.latitude.degrees, '--', transform=transform, color='blue')
-        n = len(track.longitude.degrees)
-        ax.annotate("", xytext=(track.longitude.degrees[n//2], track.latitude.degrees[n//2]), xy=(track.longitude.degrees[n//2+1], track.latitude.degrees[n//2+1]), arrowprops=dict(facecolor='blue', edgecolor='blue'), transform=transform)
 
 
 def params_to_text(current_datetime: datetime, lat: Angle, lon: Angle, course: Angle, velocity: Velocity) -> str:
+    lat_str = f'{lat}'
+    lat_str = lat_str.replace("deg", "°")
+    lon_str = f'{lon}'
+    lon_str = lon_str.replace("deg", '°')
+
     return f'''{current_datetime}\n
-Широта: {lat}\n
-Долгота: {lon}\n
-Курс: {course.degrees:.0f}deg\n
+Широта: {lat_str}\n
+Долгота: {lon_str}\n
+Курс: {course.degrees:.0f}°\n
 Скорость: {velocity.km_per_s * 3600 * 0.539957:.1f} уз'''
 
 
@@ -107,8 +108,14 @@ def main():
     print("Hello!")
 
     moscow_timezone = pytz.timezone("Europe/Moscow")
+    # current_datetime = datetime.datetime(2025, 3, 14, 14, 0, 0, tzinfo=moscow_timezone)
+    # current_datetime = datetime.datetime(2025, 3, 23, 9, 0, 0, tzinfo=moscow_timezone)
     current_datetime = datetime.datetime(2025, 4, 23, 23, 30, 0, tzinfo=moscow_timezone)
 
+    # communication_session_start_time = current_datetime + datetime.timedelta(hours=19)
+    # communication_session_end_time = current_datetime + datetime.timedelta(hours=19.5)
+    # communication_session_start_time = current_datetime + datetime.timedelta(hours=55)
+    # communication_session_end_time = current_datetime + datetime.timedelta(hours=55.25)
     communication_session_start_time = current_datetime + datetime.timedelta(hours=8)
     communication_session_end_time = current_datetime + datetime.timedelta(hours=8.2)
 
@@ -133,7 +140,9 @@ def main():
     2 40069  98.4666 112.5440 0006615 131.1662 229.0088 14.21285278561501'''
     
     antenna = FiniteLengthDipole(Frequency(hz=1e+6), Power(w=3.7e-12), Power(w=12), Power(w=10))
-    vessel = Vessel(Angle(degrees=73), Angle(degrees=-3), Angle(degrees=320), Velocity(km_per_s=0.0154))
+    # vessel = Vessel(Angle(degrees=-10), Angle(degrees=-15), Angle(degrees=320), Velocity(km_per_s=0.0154))
+    # vessel = Vessel(Angle(degrees=0), Angle(degrees=70), Angle(degrees=320), Velocity(km_per_s=0.0154))
+    vessel = Vessel(Angle(degrees=55), Angle(degrees=4), Angle(degrees=320), Velocity(km_per_s=0.0154))
     # area = [(-73, 40), (-10, 40), (-18, 22), (-18, 12), (-8, 2.6), (8, 2.6), (8, -35), (-49, -35), (-32, -6), (-76, 31)]
     # area = [(64, 24), (78, 7), (90, 21), (101, -5), (125, -12), (112, -23), (112, -35), (27, -35)]
     area = [(4.5, 62), (4.5, 59), (8, 57.5), (3, 52), (-3, 60), (-43, 60), (-21, 70), (-13, 80), (9, 80), (18, 73)]
@@ -164,10 +173,10 @@ def main():
     projection = ccrs.PlateCarree()
     transform = ccrs.Geodetic()
 
-    fig1 = plt.figure(figsize=(9, 5))
+    fig1 = plt.figure(figsize=(10, 5))
     ax1 = fig1.add_subplot(1, 1, 1, projection=projection)
     plt.tight_layout()
-    fig2 = plt.figure(figsize=(9, 5))
+    fig2 = plt.figure(figsize=(10, 5))
     ax2 = fig2.add_subplot(1, 1, 1, projection=projection)
     plt.tight_layout()
 
