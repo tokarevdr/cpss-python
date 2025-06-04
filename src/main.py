@@ -22,17 +22,19 @@ def draw_satellite(ax, sat: Satellite, color, transform):
     ax.annotate(sat.title(), (sat.subpoint_position().longitude.degrees - 5, sat.subpoint_position().latitude.degrees + 3), transform=transform, color=color)
 
 
-def draw_satellite_with_start_position(ax, sat: Satellite, color, transform):
-    ax.plot(sat.subpoint_position().longitude.degrees, sat.subpoint_position().latitude.degrees, 'o', transform=transform, color=color)
+def draw_satellite_with_start_position(ax, sat: Satellite, color, transform, withLabel: bool = True):
+    label_prefix = '' if withLabel else '_'
+    ax.plot(sat.subpoint_position().longitude.degrees, sat.subpoint_position().latitude.degrees, 'o', transform=transform, color=color, label= label_prefix + 'Положение проекции спутника в момент $t_0$')
     ax.fill(*sat.coverage_area().exterior.xy, transform=transform, facecolor = 'grey', alpha = 0.2, edgecolor='grey')
-    ax.plot(*sat.coverage_area().exterior.xy, transform=transform, color=color)
+    ax.plot(*sat.coverage_area().exterior.xy, transform=transform, color=color, label=label_prefix + 'Область видимости спутника в момент $t_0$')
     ax.annotate(sat.title(), (sat.subpoint_position().longitude.degrees - 5, sat.subpoint_position().latitude.degrees + 3), transform=transform, color=color)
-    ax.plot(sat.subpoint_position_at_start.longitude.degrees, sat.subpoint_position_at_start.latitude.degrees, 'o', transform=transform, color=color)
+    ax.plot(sat.subpoint_position_at_start.longitude.degrees, sat.subpoint_position_at_start.latitude.degrees, '*', markersize=10, transform=transform, color=color, label=label_prefix + 'Положение проекции спутника в момент $t_s$')
     ax.fill(*sat.coverage_area_at_start.exterior.xy, transform=transform, facecolor = 'grey', alpha = 0.2, edgecolor='grey')
-    ax.plot(*sat.coverage_area_at_start.exterior.xy, '-.', transform=transform, color=color)
+    ax.plot(*sat.coverage_area_at_start.exterior.xy, '-.', transform=transform, color=color, label=label_prefix + 'Область видимости спутника в момент $t_s$')
+    ax.annotate(sat.title(), (sat.subpoint_position_at_start.longitude.degrees - 5, sat.subpoint_position_at_start.latitude.degrees + 3), transform=transform, color=color)
 
 def draw_vessel(ax, vessel: Vessel, transform):
-    ax.plot(vessel.position().longitude.degrees, vessel.position().latitude.degrees, 'o', color='green', transform=transform)
+    ax.plot(vessel.position().longitude.degrees, vessel.position().latitude.degrees, 'o', color='green', transform=transform, label='Положение объекта в момент $t_0$')
     ax.annotate("", xytext=(vessel.position().longitude.degrees, vessel.position().latitude.degrees), xy=(vessel.position().longitude.degrees + 10 * np.sin(vessel.course().radians), vessel.position().latitude.degrees + 10 * np.cos(vessel.course().radians)), arrowprops=dict(arrowstyle="->"), transform=transform)
 
 
@@ -47,7 +49,7 @@ def draw_station(ax, station: Station, transform):
 
 
 def draw_simulation(ax, sim: vrc.Simulation, track_start_datetime: datetime, track_end_datetime: datetime, transform):
-    ax.plot(*sim.area().exterior.xy, '-.', transform=transform, color='green')
+    ax.plot(*sim.area().exterior.xy, '-.', transform=transform, color='green', label='Допустимая акватория')
     draw_vessel(ax, sim.vessel(), transform)
 
     draw_parameters(ax, sim.current_datetime(), sim.vessel().position().latitude, sim.vessel().position().longitude,
@@ -55,9 +57,10 @@ def draw_simulation(ax, sim: vrc.Simulation, track_start_datetime: datetime, tra
 
     colors = ['red', 'orange', 'blue', 'purple', 'brown']
     for i in range(sim.satellite_count()):
-        draw_satellite_with_start_position(ax, sim.satellite_at(i), colors[i], transform)
+        draw_satellite_with_start_position(ax, sim.satellite_at(i), colors[i], transform, i == 0)
         track = sim.satellite_at(i).track(track_start_datetime, track_end_datetime, datetime.timedelta(minutes=5))
-        ax.plot(track.longitude.degrees, track.latitude.degrees, '--', transform=transform, color=colors[i])
+        label_prefix = '' if i == 0 else '_'
+        ax.plot(track.longitude.degrees, track.latitude.degrees, '--', transform=transform, color=colors[i], label=label_prefix + 'Траектория проекции спутника от $t_s$ до $t_e$')
 
     for i in range(sim.landmark_count()):
         draw_landmark(ax, sim.landmark_at(i), transform)
@@ -195,6 +198,7 @@ def main():
     if results:
         draw_result_sim(ax2, res_sim, communication_session_start_time, communication_session_end_time, transform=transform)
     
+    # ax1.legend()
     plt.show()
 
 if __name__ == "__main__":
